@@ -76,17 +76,83 @@ export default function Home() {
     document.body.appendChild(element);
     
     const opt = {
-      margin:       10,
-      filename:     'optimized_resume.pdf',
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2 },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      margin: [25, 20, 25, 20], // [top, left, bottom, right] margins in mm
+      filename: 'optimized_resume.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 2,
+        useCORS: true,
+        letterRendering: true
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+        compress: true
+      }
     };
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .generated-resume {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        padding: 25px 30px;
+        color: #000;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .generated-resume h1 {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .generated-resume h2 {
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 4px;
+      }
+      .generated-resume h3 {
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 12px;
+        margin-bottom: 4px;
+      }
+      .generated-resume p {
+        margin-bottom: 8px;
+      }
+      .generated-resume ul {
+        list-style-type: disc;
+        padding-left: 18px;
+        margin-left: 0;
+        margin-bottom: 12px;
+        margin-top: 8px;
+      }
+      .generated-resume li {
+        margin-bottom: 6px;
+        padding-left: 6px;
+        page-break-inside: avoid;
+      }
+      .generated-resume section {
+        margin-bottom: 20px;
+      }
+      .generated-resume .job {
+        margin-bottom: 16px;
+      }
+      @page {
+        margin: 25mm 20mm;
+        size: A4;
+      }
+    `;
+    element.appendChild(style);
 
     html2pdf().from(element).set(opt).save().then(() => {
       document.body.removeChild(element);
     });
-  }
+  };
 
   const downloadDOCX = async () => {
     if (!generatedResume) return;
