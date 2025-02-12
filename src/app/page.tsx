@@ -3,7 +3,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { analyzeJob, analyzeFitForJob, generateResume } from './actions'
+import { analyzeJob, analyzeFitForJob, generateResume, generateCoverLetter } from './actions'
 import { jsPDF } from 'jspdf'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx'
 import { saveAs } from 'file-saver'
@@ -31,6 +31,7 @@ export default function Home() {
   const [fitAnalysis, setFitAnalysis] = useState<string | null>(null)
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [generatedResume, setGeneratedResume] = useState<string | null>(null)
+  const [generatedCoverLetter, setGeneratedCoverLetter] = useState<string | null>(null)
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const editableRef = useRef<HTMLDivElement>(null)
 
@@ -69,6 +70,19 @@ export default function Home() {
       setGeneratedResume(result)
     } catch (error) {
       console.error('Error generating resume:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGenerateCoverLetter = async () => {
+    if (!analysis?.initialAnalysis || !formData.resume || !fitAnalysis) return
+    setIsLoading(true)
+    try {
+      const result = await generateCoverLetter(analysis.initialAnalysis, formData.resume, additionalInfo, fitAnalysis)
+      setGeneratedCoverLetter(result)
+    } catch (error) {
+      console.error('Error generating cover letter:', error)
     } finally {
       setIsLoading(false)
     }
@@ -210,6 +224,80 @@ export default function Home() {
     saveAs(blob, 'optimized_resume.docx');
   }
 
+  const downloadCoverLetterPDF = async () => {
+    if (!generatedCoverLetter) return;
+    
+    const html2pdfModule = await import('html2pdf.js')
+    const html2pdf = html2pdfModule.default
+
+    const element = document.createElement('div');
+    element.innerHTML = generatedCoverLetter;
+    element.className = 'generated-cover-letter';
+    document.body.appendChild(element);
+    
+    const opt = {
+      margin: [25, 20, 25, 20],
+      filename: 'cover_letter.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .generated-cover-letter {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        padding: 25px 30px;
+        color: #000;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .generated-cover-letter p {
+        margin-bottom: 16px;
+      }
+      .generated-cover-letter .header {
+        margin-bottom: 24px;
+      }
+      .generated-cover-letter .signature {
+        margin-top: 24px;
+      }
+    `;
+    element.appendChild(style);
+
+    html2pdf().from(element).set(opt).save().then(() => {
+      document.body.removeChild(element);
+    });
+  };
+
+  const downloadCoverLetterDOCX = async () => {
+    if (!generatedCoverLetter) return;
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(generatedCoverLetter, 'text/html');
+    
+    const sections = doc.querySelectorAll('section');
+    const docx = new Document({
+      sections: [{
+        properties: {},
+        children: Array.from(sections).flatMap(section => {
+          return Array.from(section.querySelectorAll('p')).map(p => 
+            new Paragraph({
+              text: p.textContent || '',
+              spacing: {
+                after: 300,
+                line: 360,
+              },
+            })
+          );
+        }),
+      }],
+    });
+
+    const blob = await Packer.toBlob(docx);
+    saveAs(blob, 'cover_letter.docx');
+  };
+
   const handleEditSection = (sectionId: string) => {
     setEditingSection(sectionId)
   }
@@ -314,6 +402,35 @@ export default function Home() {
       </div>
     )
   }
+
+  const EditableCoverLetterSection = ({ html }: { html: string }) => {
+    return (
+      <div className="relative group">
+        <div 
+          dangerouslySetInnerHTML={{ __html: html }}
+          className="generated-cover-letter bg-white p-6 rounded-lg shadow-md text-gray-900"
+          contentEditable={true}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => setGeneratedCoverLetter(e.currentTarget.innerHTML)}
+        />
+        <style jsx global>{`
+          .generated-cover-letter {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+          }
+          .generated-cover-letter .header {
+            margin-bottom: 24px;
+          }
+          .generated-cover-letter p {
+            margin-bottom: 16px;
+          }
+          .generated-cover-letter .signature {
+            margin-top: 24px;
+          }
+        `}</style>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen p-8">
@@ -439,6 +556,39 @@ export default function Home() {
               </>
             )}
           </>
+        )}
+
+        {generatedResume && (
+          <div className="mt-8">
+            <button
+              onClick={handleGenerateCoverLetter}
+              disabled={isLoading}
+              className="bg-indigo-500 text-white px-6 py-2 rounded-md hover:bg-indigo-600 disabled:bg-indigo-300"
+            >
+              {isLoading ? 'Generating...' : 'Generate Cover Letter'}
+            </button>
+
+            {generatedCoverLetter && (
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold mb-4">Cover Letter</h2>
+                <EditableCoverLetterSection html={generatedCoverLetter} />
+                <div className="mt-4 space-x-4">
+                  <button
+                    onClick={downloadCoverLetterPDF}
+                    className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600"
+                  >
+                    Download as PDF
+                  </button>
+                  <button
+                    onClick={downloadCoverLetterDOCX}
+                    className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"
+                  >
+                    Download as DOCX
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </main>
     </div>

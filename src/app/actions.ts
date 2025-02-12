@@ -237,4 +237,68 @@ export async function generateResume(jobAnalysis: string, originalResume: string
     console.error('Error in generateResume:', error)
     throw new Error('Failed to generate resume')
   }
+}
+
+export async function generateCoverLetter(jobAnalysis: string, resume: string, additionalInfo: string, fitAnalysis: string): Promise<string> {
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  })
+
+  const prompt = `
+    Generate a personalized cover letter based on the job analysis, resume, and fit analysis provided.
+    The cover letter should be concise, professional, and highlight the most relevant experiences that make the candidate an excellent fit for this role.
+
+    Job Analysis:
+    ${jobAnalysis}
+
+    Resume:
+    ${resume}
+
+    Additional Information:
+    ${additionalInfo}
+
+    Fit Analysis:
+    ${fitAnalysis}
+
+    Requirements:
+    1. Format the cover letter in HTML
+    2. Keep it concise (2-3 paragraphs)
+    3. Highlight specific experiences that match the job requirements
+    4. Include a strong opening and closing
+    5. Maintain a professional yet engaging tone
+    6. End with a call to action for an interview
+
+    Format the response in this HTML structure:
+    <div class="cover-letter">
+      <section class="header">
+        [Date]
+        [Hiring Manager/Recruiter Name if available]
+        [Company Name]
+      </section>
+      
+      <section class="content">
+        <p>[Opening paragraph - Hook and position interest]</p>
+        <p>[Body paragraph(s) - Specific relevant experiences and achievements]</p>
+        <p>[Closing paragraph - Call to action]</p>
+      </section>
+      
+      <section class="signature">
+        Sincerely,
+        [Candidate Name]
+      </section>
+    </div>
+  `
+
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'o3-mini',
+      // temperature: 0.7,
+    })
+
+    return completion.choices[0].message.content || 'Failed to generate cover letter'
+  } catch (error) {
+    console.error('Error in generateCoverLetter:', error)
+    throw new Error('Failed to generate cover letter')
+  }
 } 
