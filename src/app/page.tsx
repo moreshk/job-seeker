@@ -35,6 +35,19 @@ export default function Home() {
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const editableRef = useRef<HTMLDivElement>(null)
 
+  // Update ref types
+  const analysisRef = useRef<HTMLDivElement>(null)
+  const fitAnalysisRef = useRef<HTMLDivElement>(null)
+  const resumeRef = useRef<HTMLDivElement>(null)
+  const coverLetterRef = useRef<HTMLDivElement>(null)
+
+  // Update scroll helper function
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -42,6 +55,7 @@ export default function Home() {
       const formattedAnalysis = await analyzeJob(formData.website, formData.description)
       setAnalysis({ formattedAnalysis, initialAnalysis: formattedAnalysis })
       setFitAnalysis(null)
+      setTimeout(() => scrollToRef(analysisRef), 100)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -55,6 +69,7 @@ export default function Home() {
     try {
       const result = await analyzeFitForJob(analysis.initialAnalysis, formData.resume)
       setFitAnalysis(result)
+      setTimeout(() => scrollToRef(fitAnalysisRef), 100)
     } catch (error) {
       console.error('Error analyzing fit:', error)
     } finally {
@@ -68,6 +83,7 @@ export default function Home() {
     try {
       const result = await generateResume(analysis.initialAnalysis, formData.resume, additionalInfo, fitAnalysis)
       setGeneratedResume(result)
+      setTimeout(() => scrollToRef(resumeRef), 100)
     } catch (error) {
       console.error('Error generating resume:', error)
     } finally {
@@ -81,6 +97,7 @@ export default function Home() {
     try {
       const result = await generateCoverLetter(analysis.initialAnalysis, formData.resume, additionalInfo, fitAnalysis)
       setGeneratedCoverLetter(result)
+      setTimeout(() => scrollToRef(coverLetterRef), 100)
     } catch (error) {
       console.error('Error generating cover letter:', error)
     } finally {
@@ -478,7 +495,7 @@ export default function Home() {
 
         {analysis && (
           <>
-            <div className="mt-8 p-6 bg-gray-800 rounded-lg text-white">
+            <div ref={analysisRef} className="mt-8 p-6 bg-gray-800 rounded-lg text-white">
               <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
               <div 
                 dangerouslySetInnerHTML={{ __html: analysis.formattedAnalysis }}
@@ -506,7 +523,7 @@ export default function Home() {
 
             {fitAnalysis && (
               <>
-                <div className="mt-8 p-6 bg-gray-700 rounded-lg text-white">
+                <div ref={fitAnalysisRef} className="mt-8 p-6 bg-gray-700 rounded-lg text-white">
                   <h2 className="text-xl font-semibold mb-4">Fit Analysis Results</h2>
                   <div 
                     dangerouslySetInnerHTML={{ __html: fitAnalysis }}
@@ -534,7 +551,7 @@ export default function Home() {
                 </div>
 
                 {generatedResume && (
-                  <div className="mt-8">
+                  <div ref={resumeRef} className="mt-8">
                     <h2 className="text-xl font-semibold mb-4">Optimized Resume</h2>
                     <EditableResumeSection html={generatedResume} />
                     <div className="mt-4 space-x-4">
@@ -569,7 +586,7 @@ export default function Home() {
             </button>
 
             {generatedCoverLetter && (
-              <div className="mt-8">
+              <div ref={coverLetterRef} className="mt-8">
                 <h2 className="text-xl font-semibold mb-4">Cover Letter</h2>
                 <EditableCoverLetterSection html={generatedCoverLetter} />
                 <div className="mt-4 space-x-4">
