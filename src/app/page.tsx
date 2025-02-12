@@ -7,12 +7,18 @@ import { analyzeJob, analyzeFitForJob, generateResume } from './actions'
 import { jsPDF } from 'jspdf'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx'
 import { saveAs } from 'file-saver'
-import html2pdf from 'html2pdf.js'
+import dynamic from 'next/dynamic'
 
 interface AnalysisResponse {
   formattedAnalysis: string;
   initialAnalysis?: string;
 }
+
+// Dynamically import html2pdf with no SSR
+const html2pdf = dynamic(() => import('html2pdf.js'), {
+  ssr: false,
+  loading: () => null
+})
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false)
@@ -68,8 +74,13 @@ export default function Home() {
     }
   }
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!generatedResume) return;
+    
+    // Import html2pdf dynamically only when needed
+    const html2pdfModule = await import('html2pdf.js')
+    const html2pdf = html2pdfModule.default
+
     const element = document.createElement('div');
     element.innerHTML = generatedResume;
     element.className = 'generated-resume';
