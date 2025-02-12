@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// /* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { analyzeJob, analyzeFitForJob, generateResume } from './actions'
 import { jsPDF } from 'jspdf'
-import { Document, Packer, Paragraph, TextRun } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, UnderlineType } from 'docx'
 import { saveAs } from 'file-saver'
+import html2pdf from 'html2pdf.js'
 
 interface AnalysisResponse {
   formattedAnalysis: string;
@@ -22,6 +25,8 @@ export default function Home() {
   const [fitAnalysis, setFitAnalysis] = useState<string | null>(null)
   const [additionalInfo, setAdditionalInfo] = useState('')
   const [generatedResume, setGeneratedResume] = useState<string | null>(null)
+  const [editingSection, setEditingSection] = useState<string | null>(null)
+  const editableRef = useRef<HTMLDivElement>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,44 +69,173 @@ export default function Home() {
   }
 
   const downloadPDF = () => {
-    if (!generatedResume) return
-    const doc = new jsPDF()
-    doc.html(generatedResume, {
-      callback: function (doc) {
-        doc.save('optimized_resume.pdf')
-      },
-      x: 10,
-      y: 10,
-      width: 190,
-      windowWidth: 650
-    })
+    if (!generatedResume) return;
+    const element = document.createElement('div');
+    element.innerHTML = generatedResume;
+    element.className = 'generated-resume';
+    document.body.appendChild(element);
+    
+    const opt = {
+      margin:       10,
+      filename:     'optimized_resume.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().from(element).set(opt).save().then(() => {
+      document.body.removeChild(element);
+    });
   }
 
   const downloadDOCX = async () => {
-    if (!generatedResume) return
+    if (!generatedResume) return;
     
-    // Create a temporary div to parse the HTML
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = generatedResume
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(generatedResume, 'text/html');
     
-    // Extract text content
-    const textContent = tempDiv.innerText
-    
-    // Create a new document
-    const doc = new Document({
+    const sections = doc.querySelectorAll('section');
+    const docx = new Document({
       sections: [{
         properties: {},
-        children: [
-          new Paragraph({
-            children: [new TextRun(textContent)],
-          }),
-        ],
+        children: Array.from(sections).flatMap(section => {
+          const sectionTitle = section.querySelector('h2');
+          const paragraphs = section.querySelectorAll('p, ul');
+          
+          return [
+            new Paragraph({
+              text: sectionTitle ? sectionTitle.textContent || '' : '',
+              heading: HeadingLevel.HEADING_2,
+              thematicBreak: true,
+            }),
+            ...Array.from(paragraphs).map(p => {
+              if (p.tagName === 'UL') {
+                return Array.from(p.querySelectorAll('li')).map(li => 
+                  new Paragraph({
+                    text: li.textContent || '',
+                    bullet: {
+                      level: 0
+                    }
+                  })
+                );
+              } else {
+                return new Paragraph({
+                  text: p.textContent || '',
+                });
+              }
+            }).flat(),
+          ];
+        }),
       }],
-    })
+    });
 
-    // Generate and save the document
-    const blob = await Packer.toBlob(doc)
-    saveAs(blob, 'optimized_resume.docx')
+    const blob = await Packer.toBlob(docx);
+    saveAs(blob, 'optimized_resume.docx');
+  }
+
+  const handleEditSection = (sectionId: string) => {
+    setEditingSection(sectionId)
+  }
+
+  const handleSaveSection = useCallback(() => {
+    if (!editableRef.current || !generatedResume) return
+    setGeneratedResume(editableRef.current.innerHTML)
+  }, [generatedResume])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (editableRef.current && !editableRef.current.contains(event.target as Node)) {
+        handleSaveSection()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [handleSaveSection])
+
+  const EditableResumeSection = ({ html }: { html: string }) => {
+    return (
+      <div className="relative group">
+        <div 
+          dangerouslySetInnerHTML={{ __html: html }}
+          className="generated-resume bg-white p-6 rounded-lg shadow-md text-gray-900"
+          ref={editableRef}
+          contentEditable={true}
+          suppressContentEditableWarning={true}
+        />
+        <style jsx global>{`
+          .generated-resume {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+          }
+          .generated-resume h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+          }
+          .generated-resume h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 4px;
+          }
+          .generated-resume h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 12px;
+            margin-bottom: 4px;
+          }
+          .generated-resume p {
+            margin-bottom: 8px;
+          }
+          .generated-resume ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-bottom: 12px;
+          }
+          .generated-resume li {
+            margin-bottom: 4px;
+          }
+          .generated-resume section {
+            margin-bottom: 20px;
+          }
+          .generated-resume .job {
+            margin-bottom: 16px;
+          }
+          .generated-resume section:hover .edit-icon {
+            opacity: 1;
+          }
+          .edit-icon {
+            opacity: 0;
+            transition: opacity 0.2s;
+          }
+          @media print {
+            .edit-icon {
+              display: none;
+            }
+          }
+        `}</style>
+        {Array.from(new DOMParser().parseFromString(html, 'text/html').querySelectorAll('section')).map((section) => {
+          const sectionId = section.getAttribute('data-section-id')
+          if (!sectionId) return null
+          
+          return (
+            <button
+              key={sectionId}
+              className="edit-icon absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700"
+              onClick={() => handleEditSection(sectionId)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-12 12a2 2 0 01-2.828 0 2 2 0 010-2.828l12-12z" />
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-12 12A2 2 0 011 18v-2l12-12z" />
+              </svg>
+            </button>
+          )
+        })}
+      </div>
+    )
   }
 
   return (
@@ -208,10 +342,7 @@ export default function Home() {
                 {generatedResume && (
                   <div className="mt-8">
                     <h2 className="text-xl font-semibold mb-4">Optimized Resume</h2>
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: generatedResume }}
-                      className="generated-resume bg-white p-6 rounded-lg shadow-md"
-                    />
+                    <EditableResumeSection html={generatedResume} />
                     <div className="mt-4 space-x-4">
                       <button
                         onClick={downloadPDF}

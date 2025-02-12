@@ -92,7 +92,7 @@ export async function analyzeFitForJob(jobAnalysis: string, resume: string): Pro
 
   const prompt = `
     Based on the following job analysis and resume, evaluate if the candidate is a good fit for the role.
-    Provide your response in this HTML format:
+    Provide your response in this HTML format without any surrounding backticks:
     <div class="fit-analysis">
       <section>
         <h3>Overall Assessment</h3>
@@ -179,12 +179,48 @@ export async function generateResume(jobAnalysis: string, originalResume: string
     Fit Analysis:
     ${fitAnalysis}
 
+    Format Requirements:
+    1. Use HTML with distinct sections wrapped in <section> tags with unique data-section-id attributes
+    2. Use <ul> and <li> tags for bullet points in experience, skills, and achievements
+    3. Structure each major section (e.g., experience, education, skills) in separate sections
+    4. Use appropriate heading tags (h1, h2, h3) for hierarchy
+    5. Example format:
+       <div class="resume">
+         <section data-section-id="header">
+           <h1>Full Name</h1>
+           <p>Contact Information</p>
+         </section>
+         <section data-section-id="summary">
+           <h2>Professional Summary</h2>
+           <p>[Summary content]</p>
+         </section>
+         <section data-section-id="experience">
+           <h2>Professional Experience</h2>
+           <div class="job">
+             <h3>Job Title</h3>
+             <p>Company Name | Date Range</p>
+             <ul>
+               <li>Achievement 1</li>
+               <li>Achievement 2</li>
+             </ul>
+           </div>
+         </section>
+         <section data-section-id="skills">
+           <h2>Skills</h2>
+           <ul>
+             <li>Skill 1</li>
+             <li>Skill 2</li>
+           </ul>
+         </section>
+       </div>
+
     Instructions:
     1. Rework the resume to highlight experiences and skills that are most relevant to the job requirements.
     2. Incorporate the additional information provided by the candidate.
     3. Follow the focus recommendations from the fit analysis.
     4. Format the resume in a clean, professional style using HTML.
     5. Ensure the resume is well-structured and easy to read.
+    6. Use appropriate spacing and formatting to improve readability.
 
     Please provide the optimized resume in HTML format, ready for display and PDF conversion.
   `
@@ -192,8 +228,8 @@ export async function generateResume(jobAnalysis: string, originalResume: string
   try {
     const completion = await openai.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'o3-mini',
-    //   temperature: 0.7,
+      model: 'gpt-3.5-turbo',
+      temperature: 0.7,
     })
 
     return completion.choices[0].message.content || 'Failed to generate resume'
