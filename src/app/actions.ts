@@ -1,8 +1,14 @@
 'use server'
 
 import { OpenAI } from 'openai'
+import { getServerSession } from "next-auth/next"
 
 export async function analyzeJob(website: string, description: string): Promise<string> {
+  const session = await getServerSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
   const prompt = `
     Analyze this job opportunity and company. First, determine if this is posted by a recruiter/staffing agency or the direct employer.
     Website/Company info: ${website || 'Not provided'}
@@ -86,6 +92,11 @@ export async function analyzeJob(website: string, description: string): Promise<
 }
 
 export async function analyzeFitForJob(jobAnalysis: string, resume: string): Promise<string> {
+  const session = await getServerSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   })
@@ -160,6 +171,11 @@ export async function analyzeFitForJob(jobAnalysis: string, resume: string): Pro
 }
 
 export async function generateResume(jobAnalysis: string, originalResume: string, additionalInfo: string, fitAnalysis: string): Promise<string> {
+  const session = await getServerSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   })
@@ -240,6 +256,11 @@ export async function generateResume(jobAnalysis: string, originalResume: string
 }
 
 export async function generateCoverLetter(jobAnalysis: string, resume: string, additionalInfo: string, fitAnalysis: string): Promise<string> {
+  const session = await getServerSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   })

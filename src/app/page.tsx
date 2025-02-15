@@ -2,7 +2,9 @@
 // /* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import JobAnalysisForm from './components/JobAnalysisForm'
 import AnalysisResults from './components/AnalysisResults'
 import FitAnalysis from './components/FitAnalysis'
@@ -11,6 +13,8 @@ import CoverLetterGenerator from './components/CoverLetterGenerator'
 import { AnalysisResponse, FormData } from './types'
 
 export default function Home() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     website: '',
@@ -27,6 +31,20 @@ export default function Home() {
   const fitAnalysisRef = useRef<HTMLDivElement>(null) as React.MutableRefObject<HTMLDivElement>
   const resumeRef = useRef<HTMLDivElement>(null) as React.MutableRefObject<HTMLDivElement>
   const coverLetterRef = useRef<HTMLDivElement>(null) as React.MutableRefObject<HTMLDivElement>
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+    }
+  }, [status, router])
+
+  if (status === 'loading') {
+    return <div>Loading...</div>
+  }
+
+  if (!session) {
+    return null
+  }
 
   return (
     <div className="min-h-screen p-8">
